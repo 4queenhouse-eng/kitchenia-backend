@@ -21,15 +21,12 @@ app.get('/', (req, res) => {
 // Route principale — reçoit le prompt de l'app et appelle l'API Anthropic
 app.post('/api/find-recipes', async (req, res) => {
   const { prompt } = req.body;
-
   if (!prompt || typeof prompt !== 'string') {
     return res.status(400).json({ error: 'Le champ "prompt" est requis.' });
   }
-
   if (!process.env.ANTHROPIC_API_KEY) {
     return res.status(500).json({ error: 'Clé API Anthropic non configurée sur le serveur.' });
   }
-
   try {
     const response = await fetch(ANTHROPIC_ENDPOINT, {
       method: 'POST',
@@ -40,7 +37,10 @@ app.post('/api/find-recipes', async (req, res) => {
       },
       body: JSON.stringify({
         model: 'claude-sonnet-4-6',
-        max_tokens: 2000,
+        // Augmenté de 2000 à 4096 : 2 recettes complètes (titre, ingrédients,
+        // étapes, substitutions) + les blocs de résultats web_search consomment
+        // plus de tokens que prévu, ce qui tronquait le JSON en sortie.
+        max_tokens: 4096,
         messages: [{ role: 'user', content: prompt }],
         tools: [{ type: 'web_search_20250305', name: 'web_search' }],
       }),
@@ -53,6 +53,13 @@ app.post('/api/find-recipes', async (req, res) => {
     }
 
     const data = await response.json();
+
+    // Avertissement utile dans les logs si la réponse a quand même été coupée
+    // (utile pour diagnostiquer si 4096 s'avère encore insuffisant un jour)
+    if (data.stop_reason === 'max_tokens') {
+      console.warn('⚠️ Réponse Claude tronquée (max_tokens atteint) — envisager d\'augmenter max_tokens davantage.');
+    }
+
     res.json(data);
   } catch (err) {
     console.error('Erreur serveur:', err);
