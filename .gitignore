@@ -1,0 +1,16 @@
+# Variables d'environnement sensibles (clé API Anthropic, etc.)
+.env
+.env.local
+.env.*.local
+
+# Dépendances
+node_modules/
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Fichiers système
+.DS_Store
+Thumbs.db
