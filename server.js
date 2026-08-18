@@ -24,7 +24,7 @@ const findRecipesLimiter = rateLimit({
 const MAX_PROMPT_LENGTH = 2000;
 
 // Timeout maximum pour l'appel à l'API Anthropic (évite un blocage indéfini)
-const ANTHROPIC_TIMEOUT_MS = 30000;
+const ANTHROPIC_TIMEOUT_MS = 60000;
 
 // Route de santé — permet de vérifier que le serveur tourne
 app.get('/', (req, res) => {
