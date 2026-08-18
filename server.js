@@ -7,20 +7,7 @@ const cors = require('cors');
 const fetch = require('node-fetch');
 const rateLimit = require('express-rate-limit');
 const app = express();
-
-// CORS restreint : bloque les appels depuis un navigateur web (origine définie),
-// mais laisse passer les requêtes sans origine (app mobile native KitchenIA).
-const corsOptions = {
-  origin: (origin, callback) => {
-    if (!origin) {
-      // Pas d'en-tête Origin = requête native (app mobile), toujours autorisée
-      return callback(null, true);
-    }
-    // Aucun site web n'est autorisé à appeler ce backend directement
-    return callback(new Error('Origine non autorisée par CORS'));
-  },
-};
-app.use(cors(corsOptions));
+app.use(cors());
 app.use(express.json());
 const ANTHROPIC_ENDPOINT = 'https://api.anthropic.com/v1/messages';
 
