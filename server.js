@@ -1,4 +1,4 @@
-﻿// backend/server.js
+// backend/server.js
 // Proxy sécurisé entre l'app KitchenIA et l'API Anthropic.
 // Déployer sur Render.com (gratuit) — voir README pour les instructions.
 require('dotenv').config();
@@ -20,6 +20,9 @@ const findRecipesLimiter = rateLimit({
   message: { error: 'Trop de requêtes. Merci de patienter avant de réessayer.' },
 });
 
+// Longueur maximale acceptée pour un prompt (protège contre les abus/bugs)
+const MAX_PROMPT_LENGTH = 2000;
+
 // Route de santé — permet de vérifier que le serveur tourne
 app.get('/', (req, res) => {
   res.json({ status: 'ok', app: 'KitchenIA Backend', version: '1.0.0' });
@@ -29,6 +32,11 @@ app.post('/api/find-recipes', findRecipesLimiter, async (req, res) => {
   const { prompt } = req.body;
   if (!prompt || typeof prompt !== 'string') {
     return res.status(400).json({ error: 'Le champ "prompt" est requis.' });
+  }
+  if (prompt.length > MAX_PROMPT_LENGTH) {
+    return res.status(400).json({
+      error: `Le prompt est trop long (${MAX_PROMPT_LENGTH} caractères maximum).`,
+    });
   }
   if (!process.env.ANTHROPIC_API_KEY) {
     return res.status(500).json({ error: 'Clé API Anthropic non configurée sur le serveur.' });
