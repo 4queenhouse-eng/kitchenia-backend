@@ -23,6 +23,9 @@ const findRecipesLimiter = rateLimit({
 // Longueur maximale acceptée pour un prompt (protège contre les abus/bugs)
 const MAX_PROMPT_LENGTH = 2000;
 
+// Timeout maximum pour l'appel à l'API Anthropic (évite un blocage indéfini)
+const ANTHROPIC_TIMEOUT_MS = 30000;
+
 // Route de santé — permet de vérifier que le serveur tourne
 app.get('/', (req, res) => {
   res.json({ status: 'ok', app: 'KitchenIA Backend', version: '1.0.0' });
@@ -41,6 +44,11 @@ app.post('/api/find-recipes', findRecipesLimiter, async (req, res) => {
   if (!process.env.ANTHROPIC_API_KEY) {
     return res.status(500).json({ error: 'Clé API Anthropic non configurée sur le serveur.' });
   }
+
+  // Contrôleur d'annulation pour appliquer un timeout à l'appel Anthropic
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), ANTHROPIC_TIMEOUT_MS);
+
   try {
     const response = await fetch(ANTHROPIC_ENDPOINT, {
       method: 'POST',
@@ -58,7 +66,10 @@ app.post('/api/find-recipes', findRecipesLimiter, async (req, res) => {
         messages: [{ role: 'user', content: prompt }],
         tools: [{ type: 'web_search_20250305', name: 'web_search' }],
       }),
+      signal: controller.signal,
     });
+    clearTimeout(timeoutId);
+
     if (!response.ok) {
       const errText = await response.text();
       console.error('Erreur Anthropic:', errText);
@@ -72,6 +83,13 @@ app.post('/api/find-recipes', findRecipesLimiter, async (req, res) => {
     }
     res.json(data);
   } catch (err) {
+    clearTimeout(timeoutId);
+    if (err.name === 'AbortError') {
+      console.error('Timeout Anthropic dépassé');
+      return res.status(504).json({
+        error: 'Le serveur met trop de temps à répondre. Merci de réessayer.',
+      });
+    }
     console.error('Erreur serveur:', err);
     res.status(500).json({ error: 'Erreur interne du serveur', detail: err.message });
   }
